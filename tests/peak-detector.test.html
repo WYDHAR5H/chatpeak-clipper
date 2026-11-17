@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ChatPeak Clipper — Unit Tests</title>
+<style>
+  body { font-family: 'Segoe UI', Consolas, monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+  h1 { color: #bf94ff; margin-bottom: 4px; }
+  .subtitle { color: #888; font-size: 0.9em; margin-bottom: 16px; }
+  .pass { color: #2ecc71; }
+  .fail { color: #e74c3c; font-weight: bold; }
+  .info { color: #aaa; font-size: 0.9em; }
+  pre { background: #16213e; padding: 10px; border-radius: 6px; overflow: auto; }
+  #results { margin-top: 10px; }
+  .test-group { margin: 15px 0; border-left: 3px solid #9147ff; padding-left: 12px; }
+</style>
+</head>
+<body>
+<h1>📈 ChatPeak Clipper — Unit Test Suite</h1>
+<div class="subtitle">Peak detection algorithm, custom analysis range, timestamp parser, and interval caching</div>
+<div id="results"></div>
+
+<script src="../lib/peak-detector.js"></script>
+<script src="../lib/storage.js"></script>
+<script>
+'use strict';
+
+const { detectPeaks, getTimeline, parseTimestamp, formatTime, SENSITIVITY_PRESETS } = PeakDetector;
+const { normalizeRanges, getMissingIntervals } = Storage;
+
+const resultsEl = document.getElementById('results');
+let totalTests = 0, passed = 0, failed = 0;
+
+function log(html) {
+  resultsEl.innerHTML += html + '\n';
+}
+
+function assert(cond, label, detail = '') {
+  totalTests++;
+  if (cond) {
+    passed++;
+    log(`<div class="pass">  ✅ ${label}</div>`);
+  } else {
+    failed++;
+    log(`<div class="fail">  ❌ ${label}${detail ? ': ' + detail : ''}</div>`);
+  }
+}
+
+function group(name) {
+  log(`<div class="test-group"><strong>▸ ${name}</strong>`);
+}
+function endGroup() {
+  log('</div>');
+}
+
+function generateMessages(segments, baseRate, vodLength) {
+  const msgs = [];
+  let id = 0;
+  for (let t = 0; t < vodLength; t += 10) {
+    for (let i = 0; i < baseRate; i++) {
+      const offset = t + Math.random() * 10;
+      msgs.push({
+        offsetSeconds: offset,
+        user: `user${id % 200}`,
+        text: `normal chat message ${id}`,
+        id: `msg-${id++}`,
+      });
+    }
+  }
+  for (const seg of segments) {
+    for (let t = seg.start; t < seg.end; t += 10) {
+      for (let i = 0; i < seg.rate; i++) {
+        const offset = t + Math.random() * 10;
+        const text = seg.hype
+          ? ['KEKW KEKW KEKW', 'LULW OMEGALUL', 'NO WAY POG', 'CLIP IT', '🔥🔥🔥'][i % 5]
+          : `spike message ${id}`;
+        msgs.push({
+          offsetSeconds: offset,
+          user: `spike_user_${id % 50}`,
+          text,
+          id: `msg-${id++}`,
+        });
+      }
+    }
+  }
+  msgs.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+  return msgs;
+}
+
+// ─── Test 1: Timestamp Parsing Across All Formats ───
+group('Timestamp Parser');
+{
+  assert(parseTimestamp('01:30:00') === 5400, 'parseTimestamp("01:30:00") -> 5400s');
+  assert(parseTimestamp('00:00:00') === 0, 'parseTimestamp("00:00:00") -> 0s');
+  assert(parseTimestamp('45:00') === 2700, 'parseTimestamp("45:00") -> 2700s');
+  assert(parseTimestamp('05:30') === 330, 'parseTimestamp("05:30") -> 330s');
+  assert(parseTimestamp('5400') === 5400, 'parseTimestamp("5400") -> 5400s');
+  assert(parseTimestamp('1h30m0s') === 5400, 'parseTimestamp("1h30m0s") -> 5400s');
+  assert(parseTimestamp('1h30m') === 5400, 'parseTimestamp("1h30m") -> 5400s');
+  assert(parseTimestamp('45m10s') === 2710, 'parseTimestamp("45m10s") -> 2710s');
+  assert(parseTimestamp('2h') === 7200, 'parseTimestamp("2h") -> 7200s');
+  assert(parseTimestamp('30s') === 30, 'parseTimestamp("30s") -> 30s');
+  assert(parseTimestamp('invalid') === null, 'parseTimestamp("invalid") -> null');
+  assert(parseTimestamp('') === null, 'parseTimestamp("") -> null');
+  assert(formatTime(0) === '00:00:00', 'formatTime(0)');
+  assert(formatTime(3661) === '01:01:01', 'formatTime(3661)');
+  assert(formatTime(36000) === '10:00:00', 'formatTime(36000)');
+}
+endGroup();
+
+// ─── Test 2: Interval Caching ───
+group('Interval Caching Logic');
+{
+  const norm = normalizeRanges([[100, 200], [150, 300], [400, 500], [500, 600]]);
+  assert(norm.length === 2 && norm[0][0] === 100 && norm[0][1] === 300, 'normalizeRanges merges overlapping');
+  assert(norm[1][0] === 400 && norm[1][1] === 600, 'normalizeRanges merges adjacent');
+
+  const missFull = getMissingIntervals([[0, 5000]], 1000, 4000);
+  assert(missFull.length === 0, 'getMissingIntervals: full cache -> 0 missing');
+
+  const missPartial = getMissingIntervals([[0, 2000]], 1000, 4000);
+  assert(missPartial.length === 1 && missPartial[0][0] === 2000 && missPartial[0][1] === 4000, 'getMissingIntervals: partial overlap -> [2000, 4000]');
+
+  const missHole = getMissingIntervals([[1000, 2000], [3000, 4000]], 0, 5000);
+  assert(missHole.length === 3, 'getMissingIntervals: hole in middle -> 3 sub-intervals');
+}
+endGroup();
+
+// ─── Test 3: Edge cases ───
+group('Edge cases');
+{
+  const r1 = detectPeaks([], 3600);
+  assert(r1.length === 0, 'Empty messages → 0 peaks');
+
+  const r2 = detectPeaks(null, 3600);
+  assert(r2.length === 0, 'null messages → 0 peaks');
+
+  const r3 = detectPeaks([{ offsetSeconds: 5, user: 'a', text: 'hi', id: '1' }], 10);
+  assert(Array.isArray(r3), 'Single message, very short VOD → returns array');
+}
+endGroup();
+
+// ─── Test 4: Flat chat should produce NO peaks ───
+group('Flat chat → no peaks');
+{
+  const msgs = generateMessages([], 5, 3600);
+  const peaks = detectPeaks(msgs, 3600);
+  assert(peaks.length === 0, `Uniform chat should give 0 peaks (got ${peaks.length})`);
+}
+endGroup();
+
+// ─── Test 5: Five distinct spikes — all detected and ranked ───
+group('Five distinct spikes — all detected and ranked');
+{
+  const vodLen = 7200;
+  const baseRate = 3;
+  const spikes = [
+    { start: 600,  end: 650,  rate: 60,  hype: true  },
+    { start: 1800, end: 1840, rate: 45,  hype: true  },
+    { start: 3000, end: 3030, rate: 30,  hype: false },
+    { start: 4500, end: 4540, rate: 50,  hype: true  },
+    { start: 6000, end: 6040, rate: 25,  hype: true  },
+  ];
+  const msgs = generateMessages(spikes, baseRate, vodLen);
+  const peaks = detectPeaks(msgs, vodLen);
+
+  assert(peaks.length >= 5, `Must find at least 5 peaks (found ${peaks.length})`);
+
+  for (const sp of spikes) {
+    const mid = (sp.start + sp.end) / 2;
+    const found = peaks.some(p => Math.abs(p.peakTime - mid) <= 90);
+    assert(found, `Spike near ${Math.round(mid)}s detected`);
+  }
+
+  const p0 = peaks[0];
+  assert(p0.rank === 1, 'Top peak has rank 1');
+  assert(typeof p0.peakTimestamp === 'string' && p0.peakTimestamp.includes(':'), 'peakTimestamp formatted');
+  assert(p0.clipStart >= 0 && p0.clipStart < p0.peakTime, 'clipStart before peakTime');
+  assert(p0.clipEnd > p0.peakTime && p0.clipEnd <= vodLen, 'clipEnd after peakTime');
+  assert(p0.score > 0, 'score > 0');
+  assert(p0.messagesPerMin > 0, 'messagesPerMin > 0');
+  assert(p0.multiplier >= 1, 'multiplier >= 1');
+  assert(Array.isArray(p0.topWords), 'topWords is array');
+  assert(Array.isArray(p0.sampleMsgs), 'sampleMsgs is array');
+  assert(['hot', 'good', 'okay'].includes(p0.tier), 'tier is valid');
+}
+endGroup();
+
+// ─── Test 6: Custom Analysis Range Filtering ───
+group('Custom Analysis Range [1500, 3500]');
+{
+  const vodLen = 7200;
+  const spikes = [
+    { start: 600,  end: 650,  rate: 60, hype: true },  // Outside
+    { start: 1800, end: 1840, rate: 45, hype: true },  // INSIDE
+    { start: 3000, end: 3040, rate: 40, hype: true },  // INSIDE
+    { start: 4500, end: 4540, rate: 60, hype: true },  // Outside
+    { start: 6000, end: 6040, rate: 50, hype: true },  // Outside
+  ];
+  const msgs = generateMessages(spikes, 3, vodLen);
+
+  const rangePeaks = detectPeaks(msgs, vodLen, {
+    rangeStart: 1500,
+    rangeEnd: 3500,
+  });
+
+  assert(rangePeaks.length >= 2, `Range peaks count >= 2 (got ${rangePeaks.length})`);
+
+  for (const p of rangePeaks) {
+    assert(p.peakTime >= 1500 && p.peakTime <= 3500,
+      `Peak ${p.peakTimestamp} (${p.peakTime}s) is within [1500, 3500]`);
+  }
+
+  const p1800 = rangePeaks.find(p => Math.abs(p.peakTime - 1820) <= 60);
+  assert(p1800 && p1800.peakTimestamp.startsWith('00:30'), 'Peak timestamp is absolute VOD time');
+
+  const outsidePeak = rangePeaks.some(p => p.peakTime < 1500 || p.peakTime > 3500);
+  assert(!outsidePeak, 'No peaks outside chosen range are returned');
+}
+endGroup();
+
+// ─── Test 7: Clip start offset ───
+group('Clip Start Offset Setting');
+{
+  const vodLen = 3600;
+  const spikes = [{ start: 1000, end: 1040, rate: 50, hype: true }];
+  const msgs = generateMessages(spikes, 2, vodLen);
+
+  const peaksDefault = detectPeaks(msgs, vodLen, { clipStartOffset: 20 });
+  const peaksCustom = detectPeaks(msgs, vodLen, { clipStartOffset: 45 });
+
+  assert(peaksDefault.length > 0 && peaksCustom.length > 0, 'Peaks detected for offset tests');
+  assert(peaksCustom[0].clipStart <= peaksDefault[0].clipStart,
+    `Custom clipStartOffset (45s) starts earlier than default (20s)`);
+}
+endGroup();
+
+// ─── Test 8: Timeline with Range Metadata ───
+group('getTimeline with Range Metadata');
+{
+  const vodLen = 3600;
+  const msgs = generateMessages([{ start: 500, end: 530, rate: 30, hype: true }], 2, vodLen);
+  const tl = getTimeline(msgs, vodLen, { rangeStart: 600, rangeEnd: 2400 });
+
+  assert(tl.rangeStart === 600, 'timeline.rangeStart === 600');
+  assert(tl.rangeEnd === 2400, 'timeline.rangeEnd === 2400');
+  assert(tl.vodLength === 3600, 'timeline.vodLength === 3600');
+  assert(tl.times.length > 0, 'timeline.times populated');
+}
+endGroup();
+
+// ─── Summary ───
+log('<hr>');
+const color = failed === 0 ? 'pass' : 'fail';
+log(`<h2 class="${color}">${passed}/${totalTests} tests passed` +
+  (failed > 0 ? `, ${failed} FAILED` : ' ✨ All green!') + '</h2>');
+</script>
+</body>
+</html>

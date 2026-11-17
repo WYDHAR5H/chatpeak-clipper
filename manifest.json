@@ -1,0 +1,78 @@
+{
+  "manifest_version": 3,
+  "name": "ChatPeak Clipper",
+  "version": "1.2.1",
+  "author": "Harsh",
+  "description": "Find viral moments in Twitch and YouTube VODs by detecting chat activity peaks. Ranked timestamps, timeline chart, custom time ranges, and one-click seeking.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://gql.twitch.tv/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.twitch.tv/*",
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "adapters/twitch.js",
+        "adapters/youtube.js",
+        "adapters/index.js",
+        "content/content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "ChatPeak Clipper"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/*", "icons/*", "adapters/*"],
+      "matches": [
+        "https://www.twitch.tv/*",
+        "https://www.youtube.com/*"
+      ]
+    }
+  ],
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Toggle ChatPeak Clipper panel"
+    },
+    "next-peak": {
+      "suggested_key": {
+        "default": "Alt+N"
+      },
+      "description": "Jump to next peak"
+    },
+    "prev-peak": {
+      "suggested_key": {
+        "default": "Alt+B"
+      },
+      "description": "Jump to previous peak"
+    }
+  }
+}

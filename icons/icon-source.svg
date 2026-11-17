@@ -1,0 +1,13 @@
+<!-- 
+  Simple SVG icon for ChatPeak Clipper.
+  This file is a source; PNG icons are generated from it.
+  The icon shows a stylised chart peak with the Twitch purple accent.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="20" fill="#0e0e10"/>
+  <polyline points="12,100 32,90 48,85 56,80 64,40 72,20 80,55 88,75 100,80 116,85"
+    fill="none" stroke="#9147ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="72" cy="20" r="8" fill="#ff4444"/>
+  <polyline points="12,100 32,95 48,93 56,92 64,90 72,91 80,93 88,94 100,95 116,96"
+    fill="none" stroke="#555" stroke-width="2" stroke-dasharray="4,3"/>
+</svg>

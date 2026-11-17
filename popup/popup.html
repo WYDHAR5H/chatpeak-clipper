@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 330px;
+    background: #0e0e10;
+    color: #efeff1;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    padding: 12px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #2f2f35;
+    padding-bottom: 8px;
+  }
+  .header .logo { font-size: 20px; }
+  .header .title { font-weight: 700; font-size: 14px; color: #bf94ff; flex: 1; }
+  .header .version { font-size: 10px; color: #777; }
+  .platform-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-right: 4px;
+    display: inline-block;
+  }
+  .badge-twitch { background: #9146ff; color: #fff; }
+  .badge-youtube { background: #ff0000; color: #fff; }
+  .badge-none { background: #333; color: #aaa; }
+
+  .content { display: flex; flex-direction: column; gap: 9px; }
+
+  /* Range Box */
+  .range-box {
+    background: #18181b;
+    border: 1px solid #2f2f35;
+    border-radius: 8px;
+    padding: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .range-row {
+    display: flex;
+    gap: 8px;
+  }
+  .range-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .range-col label {
+    font-size: 11px;
+    color: #adadb8;
+    font-weight: 500;
+  }
+  .input-btn-group {
+    display: flex;
+    gap: 3px;
+  }
+  .input-btn-group input {
+    flex: 1;
+    background: #0e0e10;
+    border: 1px solid #333339;
+    color: #efeff1;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Consolas', monospace;
+    min-width: 0;
+  }
+  .input-btn-group input:focus {
+    outline: none;
+    border-color: #9147ff;
+  }
+  .btn-icon {
+    padding: 3px 6px;
+    background: #2a2a30;
+    color: #adadb8;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .btn-icon:hover { background: #3a3a42; color: #fff; }
+
+  .presets-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .presets-lbl {
+    font-size: 10px;
+    color: #777;
+  }
+  .btn-preset {
+    padding: 2px 6px;
+    font-size: 10px;
+    background: #24242a;
+    color: #bf94ff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .btn-preset:hover { background: #34343e; color: #fff; }
+
+  /* Jump Row */
+  .jump-box {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #18181b;
+    border: 1px solid #26262c;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #adadb8;
+  }
+  .jump-box input {
+    flex: 1;
+    background: #0e0e10;
+    border: 1px solid #333339;
+    color: #efeff1;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Consolas', monospace;
+  }
+  .jump-box input:focus {
+    outline: none;
+    border-color: #9147ff;
+  }
+
+  /* Action Buttons */
+  .btn {
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+    color: #fff;
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: #9147ff; }
+  .btn-secondary { background: #2f2f35; color: #adadb8; font-size: 11px; padding: 7px; }
+  .btn-secondary:hover { color: #efeff1; }
+
+  .status {
+    font-size: 11px;
+    color: #adadb8;
+    text-align: center;
+    min-height: 16px;
+    line-height: 1.3;
+  }
+  .status.error { color: #ff6666; }
+
+  .shortcut {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #777;
+    padding: 2px 0;
+  }
+  .shortcut kbd {
+    background: #24242a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-family: 'Consolas', monospace;
+    color: #adadb8;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">📈</span>
+    <span class="title">ChatPeak Clipper</span>
+    <span id="platform-badge" class="platform-badge badge-twitch">Twitch</span>
+    <span class="version">v1.2.1</span>
+  </div>
+
+  <div class="content">
+    <!-- Analysis Range -->
+    <div class="range-box">
+      <div class="range-row">
+        <div class="range-col">
+          <label for="start-time">Start Time</label>
+          <div class="input-btn-group">
+            <input type="text" id="start-time" value="00:00:00" placeholder="00:00:00">
+            <button id="start-curr-btn" class="btn-icon" title="Use current video time">📍</button>
+          </div>
+        </div>
+        <div class="range-col">
+          <label for="end-time">End Time</label>
+          <div class="input-btn-group">
+            <input type="text" id="end-time" value="00:00:00" placeholder="00:00:00">
+            <button id="end-curr-btn" class="btn-icon" title="Use current video time">📍</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="presets-row">
+        <span class="presets-lbl">Presets:</span>
+        <button class="btn-preset" data-preset="last-1h">Last 1h</button>
+        <button class="btn-preset" data-preset="last-2h">Last 2h</button>
+        <button class="btn-preset" data-preset="first-2h">First 2h</button>
+        <button class="btn-preset" data-preset="full">Full VOD</button>
+      </div>
+    </div>
+
+    <!-- Jump to time -->
+    <div class="jump-box">
+      <span>Jump:</span>
+      <input type="text" id="jump-input" placeholder="e.g. 1h20m / 45:00 / 3600">
+      <button id="jump-btn" class="btn-preset" style="padding:4px 8px;">Seek</button>
+    </div>
+
+    <!-- Main Buttons -->
+    <button id="analyse-btn" class="btn btn-primary">🔍 Analyze Chat Peaks</button>
+    <div style="display:flex;gap:6px;">
+      <button id="import-btn" class="btn btn-secondary" style="flex:1;">📂 Import</button>
+      <button id="clear-cache-btn" class="btn btn-secondary" style="flex:1;">🗑️ Clear Cache</button>
+    </div>
+    <input type="file" id="file-input" accept=".json,.csv,.txt" style="display:none">
+
+    <div id="status" class="status"></div>
+
+    <hr style="border:none;border-top:1px solid #232328;margin:2px 0">
+    <div class="shortcut"><span>Toggle panel</span><kbd>Alt+P</kbd></div>
+    <div class="shortcut"><span>Next / Prev peak</span><kbd>Alt+N / Alt+B</kbd></div>
+  </div>
+
+  <script src="../adapters/twitch.js"></script>
+  <script src="../adapters/youtube.js"></script>
+  <script src="../adapters/index.js"></script>
+  <script src="../lib/peak-detector.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
